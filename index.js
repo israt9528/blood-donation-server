@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 3000;
 
 // middleware
@@ -26,12 +26,45 @@ async function run() {
 
     const db = client.db("donation-db");
     const donorCollection = db.collection("donors");
+    const requestCollection = db.collection("requests");
 
     // donar apis
 
     app.post("/donors", async (req, res) => {
       const data = req.body;
       const result = await donorCollection.insertOne(data);
+      res.send(result);
+    });
+
+    app.get("/donors", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.email = email;
+      }
+      const result = await donorCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.put("/donors/:id", async (req, res) => {
+      const data = req.body;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      delete data._id;
+      delete data.email;
+      const update = {
+        $set: data,
+      };
+      const result = await donorCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+    // request api
+    app.post("/requests", async (req, res) => {
+      const data = req.body;
+      data.createdAt = new Date();
+      data.donationStatus = "pending";
+      const result = await requestCollection.insertOne(data);
       res.send(result);
     });
 

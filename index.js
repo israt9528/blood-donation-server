@@ -68,6 +68,23 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/requests", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.requesterEmail = email;
+      }
+      const result = await requestCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await requestCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

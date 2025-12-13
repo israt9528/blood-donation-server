@@ -47,13 +47,19 @@ async function run() {
     });
 
     app.put("/donors/:id", async (req, res) => {
-      const data = req.body;
+      const { name, email, district, upazila, image, bloodGroup } = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      delete data._id;
-      delete data.email;
       const update = {
-        $set: data,
+        $set: {
+          name: name,
+          email: email,
+          district: district,
+          upazila: upazila,
+          image: image,
+          bloodGroup: bloodGroup,
+          modifiedAt: new Date(),
+        },
       };
       const result = await donorCollection.updateOne(query, update);
       res.send(result);

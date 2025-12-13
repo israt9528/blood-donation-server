@@ -9,6 +9,14 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cors());
 
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./firebase-adminsdk.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.u1z8wkz.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -19,6 +27,26 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const verifyFBToken = async (req, res, next) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  try {
+    const idToken = token.split(" ")[1];
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    console.log(decoded);
+    req.decoded_email = decoded.email;
+
+    next();
+  } catch (error) {
+    res.status(401).send({ message: "unauthorized access" });
+  }
+};
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -65,6 +93,11 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/donors", async (req, res) => {
+      const result = await donorCollection.find().toArray();
+      res.send(result);
+    });
+
     // request api
     app.post("/requests", async (req, res) => {
       const data = req.body;
@@ -74,11 +107,15 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/requests", async (req, res) => {
+    app.get("/requests", verifyFBToken, async (req, res) => {
       const email = req.query.email;
       const query = {};
       if (email) {
         query.requesterEmail = email;
+
+        if (email !== req.decoded_email) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
       }
       const result = await requestCollection.find(query).toArray();
       res.send(result);

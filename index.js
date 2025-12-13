@@ -102,6 +102,21 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const { donorName, donorEmail } = req.body;
+      const update = {
+        $set: {
+          donorName: donorName,
+          donorEmail: donorEmail,
+          donationStatus: "inprogress",
+        },
+      };
+      const request = await requestCollection.updateOne(query, update);
+      res.send(request);
+    });
+
     app.delete("/requests/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };

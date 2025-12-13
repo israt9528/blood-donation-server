@@ -84,6 +84,24 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await requestCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.put("/requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const data = req.body;
+      const update = {
+        $set: data,
+      };
+      const result = await requestCollection.updateOne(query, update);
+      res.send(result);
+    });
+
     app.delete("/requests/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };

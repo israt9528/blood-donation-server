@@ -98,6 +98,32 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/donors/:id/status", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const { status } = req.body;
+      const update = {
+        $set: {
+          status: status,
+        },
+      };
+      const result = await donorCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+    app.patch("/donors/:id/role", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const { role } = req.body;
+      const update = {
+        $set: {
+          role: role,
+        },
+      };
+      const result = await donorCollection.updateOne(query, update);
+      res.send(result);
+    });
+
     // request api
     app.post("/requests", async (req, res) => {
       const data = req.body;

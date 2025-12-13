@@ -56,6 +56,19 @@ async function run() {
     const donorCollection = db.collection("donors");
     const requestCollection = db.collection("requests");
 
+    // middleware for admin
+
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded_email;
+      const query = { email };
+      const donor = await donorCollection.findOne(query);
+
+      if (!donor || donor.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     // donar apis
 
     app.post("/donors", async (req, res) => {
@@ -94,7 +107,10 @@ async function run() {
     });
 
     app.get("/donors", async (req, res) => {
-      const result = await donorCollection.find().toArray();
+      const result = await donorCollection
+        .find()
+        .sort({ createdAt: -1 })
+        .toArray();
       res.send(result);
     });
 
@@ -123,6 +139,18 @@ async function run() {
       const result = await donorCollection.updateOne(query, update);
       res.send(result);
     });
+
+    app.get(
+      "/donors/:email/role",
+      verifyFBToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { email };
+        const result = await donorCollection.findOne(query);
+        res.send({ role: result?.role || "donor" });
+      }
+    );
 
     // request api
     app.post("/requests", async (req, res) => {

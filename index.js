@@ -38,7 +38,7 @@ const verifyFBToken = async (req, res, next) => {
   try {
     const idToken = token.split(" ")[1];
     const decoded = await admin.auth().verifyIdToken(idToken);
-    console.log(decoded);
+    // console.log(decoded);
     req.decoded_email = decoded.email;
 
     next();
@@ -78,10 +78,44 @@ async function run() {
     });
 
     app.get("/donors", async (req, res) => {
-      const email = req.query.email;
+      const { email, bloodGroup, district, upazila } = req.query;
       const query = {};
       if (email) {
         query.email = email;
+      }
+      if (bloodGroup) {
+        query.bloodGroup = bloodGroup;
+      }
+
+      if (district) {
+        query.district = district;
+      }
+
+      if (upazila) {
+        query.upazila = upazila;
+      }
+      const result = await donorCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/donors/search", async (req, res) => {
+      const { bloodGroup, district, upazila } = req.query;
+      if (!bloodGroup && !district && !upazila) {
+        return res.send([]);
+      }
+
+      const query = {};
+
+      if (bloodGroup) {
+        query.bloodGroup = bloodGroup;
+      }
+
+      if (district) {
+        query.district = district;
+      }
+
+      if (upazila) {
+        query.upazila = upazila;
       }
       const result = await donorCollection.find(query).toArray();
       res.send(result);
@@ -106,13 +140,14 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/donors", async (req, res) => {
-      const result = await donorCollection
-        .find()
-        .sort({ createdAt: -1 })
-        .toArray();
-      res.send(result);
-    });
+    // app.get("/donors", async (req, res) => {
+    //   const result = await donorCollection
+    //     .find()
+    //     .limit(3)
+    //     .sort({ createdAt: -1 })
+    //     .toArray();
+    //   res.send(result);
+    // });
 
     app.patch("/donors/:id/status", async (req, res) => {
       const id = req.params.id;
@@ -143,7 +178,7 @@ async function run() {
     app.get(
       "/donors/:email/role",
       verifyFBToken,
-      verifyAdmin,
+
       async (req, res) => {
         const email = req.params.email;
         const query = { email };
@@ -161,15 +196,46 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/requests", verifyFBToken, async (req, res) => {
+    app.get("/requests/all", async (req, res) => {
+      const result = await requestCollection
+        .find()
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(result);
+    });
+
+    app.get("/requests", async (req, res) => {
       const email = req.query.email;
       const query = {};
       if (email) {
         query.requesterEmail = email;
+      }
+      const result = await requestCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(result);
+    });
 
-        if (email !== req.decoded_email) {
-          return res.status(403).send({ message: "forbidden access" });
-        }
+    app.get("/requests/latest", verifyFBToken, async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.requesterEmail = email;
+      }
+      const result = await requestCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .toArray();
+      res.send(result);
+    });
+
+    app.get("/requests/pending", async (req, res) => {
+      const donationStatus = req.query.donationStatus;
+      const query = {};
+      if (donationStatus) {
+        query.donationStatus = donationStatus;
       }
       const result = await requestCollection.find(query).toArray();
       res.send(result);
@@ -188,6 +254,19 @@ async function run() {
       const data = req.body;
       const update = {
         $set: data,
+      };
+      const result = await requestCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+    app.patch("/requests/:id/status", verifyFBToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const { donationStatus } = req.body;
+      const update = {
+        $set: {
+          donationStatus: donationStatus,
+        },
       };
       const result = await requestCollection.updateOne(query, update);
       res.send(result);

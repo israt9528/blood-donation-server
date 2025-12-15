@@ -3,6 +3,7 @@ const cors = require("cors");
 const app = express();
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.STRIPE_KEY);
 const port = process.env.PORT || 3000;
 
 // middleware
@@ -55,6 +56,7 @@ async function run() {
     const db = client.db("donation-db");
     const donorCollection = db.collection("donors");
     const requestCollection = db.collection("requests");
+    const fundingCollection = db.collection("funds");
 
     // middleware for admin
 
@@ -291,6 +293,77 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await requestCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // funding api
+
+    app.post("/create-checkout-session", async (req, res) => {
+      const fundInfo = req.body;
+      const amount = parseInt(fundInfo.amount) * 100;
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            // Provide the exact Price ID (for example, price_1234) of the product you want to sell
+            price_data: {
+              currency: "USD",
+              unit_amount: amount,
+              product_data: {
+                name: fundInfo.name,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        customer_email: fundInfo.email,
+
+        mode: "payment",
+        metadata: {
+          senderName: fundInfo.name,
+        },
+        success_url: `${process.env.SITE_DOMAIN}/fund-successful?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.SITE_DOMAIN}/fund-cancelled`,
+      });
+      // console.log(session);
+      res.send({ url: session.url });
+
+      // res.redirect(303, session.url);
+    });
+
+    app.post("/fund-successful", async (req, res) => {
+      const sessionId = req.query.session_id;
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      // console.log(session);
+
+      const transactionId = session.payment_intent;
+      const query = { transactionId: transactionId };
+      const fundExist = await fundingCollection.findOne(query);
+      if (fundExist) {
+        return res.send({
+          message: "already exists",
+          transactionId,
+        });
+      }
+
+      const funding = {
+        senderName: session.metadata.senderName,
+        senderEmail: session.customer_email,
+        amount: session.amount_total / 100,
+        giveAt: new Date(),
+        transactionId: session.payment_intent,
+        paymentStatus: session.payment_status,
+      };
+
+      if (session.payment_status === "paid") {
+        const result = await fundingCollection.insertOne(funding);
+        res.send(result);
+      }
+
+      res.send({ success: true });
+    });
+
+    app.get("/funding", async (req, res) => {
+      const result = await fundingCollection.find().toArray();
       res.send(result);
     });
 

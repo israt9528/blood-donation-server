@@ -79,23 +79,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/donors", async (req, res) => {
-      const { email, bloodGroup, district, upazila } = req.query;
+    app.get("/donors", verifyFBToken, async (req, res) => {
+      const { email } = req.query;
       const query = {};
       if (email) {
         query.email = email;
       }
-      if (bloodGroup) {
-        query.bloodGroup = bloodGroup;
-      }
 
-      if (district) {
-        query.district = district;
-      }
-
-      if (upazila) {
-        query.upazila = upazila;
-      }
       const result = await donorCollection.find(query).toArray();
       res.send(result);
     });
@@ -123,7 +113,7 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/donors/:id", async (req, res) => {
+    app.put("/donors/:id", verifyFBToken, async (req, res) => {
       const { name, email, district, upazila, image, bloodGroup } = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -142,40 +132,41 @@ async function run() {
       res.send(result);
     });
 
-    // app.get("/donors", async (req, res) => {
-    //   const result = await donorCollection
-    //     .find()
-    //     .limit(3)
-    //     .sort({ createdAt: -1 })
-    //     .toArray();
-    //   res.send(result);
-    // });
+    app.patch(
+      "/donors/:id/status",
+      verifyFBToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const { status } = req.body;
+        const update = {
+          $set: {
+            status: status,
+          },
+        };
+        const result = await donorCollection.updateOne(query, update);
+        res.send(result);
+      }
+    );
 
-    app.patch("/donors/:id/status", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const { status } = req.body;
-      const update = {
-        $set: {
-          status: status,
-        },
-      };
-      const result = await donorCollection.updateOne(query, update);
-      res.send(result);
-    });
-
-    app.patch("/donors/:id/role", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const { role } = req.body;
-      const update = {
-        $set: {
-          role: role,
-        },
-      };
-      const result = await donorCollection.updateOne(query, update);
-      res.send(result);
-    });
+    app.patch(
+      "/donors/:id/role",
+      verifyFBToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const { role } = req.body;
+        const update = {
+          $set: {
+            role: role,
+          },
+        };
+        const result = await donorCollection.updateOne(query, update);
+        res.send(result);
+      }
+    );
 
     app.get(
       "/donors/:email/role",
@@ -190,7 +181,7 @@ async function run() {
     );
 
     // request api
-    app.post("/requests", async (req, res) => {
+    app.post("/requests", verifyFBToken, async (req, res) => {
       const data = req.body;
       data.createdAt = new Date();
       data.donationStatus = "pending";
@@ -198,7 +189,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/requests/all", async (req, res) => {
+    app.get("/requests/all", verifyFBToken, async (req, res) => {
       const result = await requestCollection
         .find()
         .sort({ createdAt: -1 })
@@ -206,7 +197,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/requests", async (req, res) => {
+    app.get("/requests", verifyFBToken, async (req, res) => {
       const email = req.query.email;
       const query = {};
       if (email) {
@@ -219,19 +210,24 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/requests/latest", verifyFBToken, async (req, res) => {
-      const email = req.query.email;
-      const query = {};
-      if (email) {
-        query.requesterEmail = email;
+    app.get(
+      "/requests/latest",
+      verifyFBToken,
+      verifyFBToken,
+      async (req, res) => {
+        const email = req.query.email;
+        const query = {};
+        if (email) {
+          query.requesterEmail = email;
+        }
+        const result = await requestCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .limit(3)
+          .toArray();
+        res.send(result);
       }
-      const result = await requestCollection
-        .find(query)
-        .sort({ createdAt: -1 })
-        .limit(3)
-        .toArray();
-      res.send(result);
-    });
+    );
 
     app.get("/requests/pending", async (req, res) => {
       const donationStatus = req.query.donationStatus;
@@ -243,14 +239,14 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/requests/:id", async (req, res) => {
+    app.get("/requests/:id", verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await requestCollection.findOne(query);
       res.send(result);
     });
 
-    app.put("/requests/:id", async (req, res) => {
+    app.put("/requests/:id", verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const data = req.body;
@@ -274,7 +270,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/requests/:id", async (req, res) => {
+    app.patch("/requests/:id", verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const { donorName, donorEmail } = req.body;
@@ -289,7 +285,7 @@ async function run() {
       res.send(request);
     });
 
-    app.delete("/requests/:id", async (req, res) => {
+    app.delete("/requests/:id", verifyFBToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await requestCollection.deleteOne(query);
@@ -298,7 +294,7 @@ async function run() {
 
     // funding api
 
-    app.post("/create-checkout-session", async (req, res) => {
+    app.post("/create-checkout-session", verifyFBToken, async (req, res) => {
       const fundInfo = req.body;
       const amount = parseInt(fundInfo.amount) * 100;
       const session = await stripe.checkout.sessions.create({
@@ -330,7 +326,7 @@ async function run() {
       // res.redirect(303, session.url);
     });
 
-    app.post("/fund-successful", async (req, res) => {
+    app.post("/fund-successful", verifyFBToken, async (req, res) => {
       const sessionId = req.query.session_id;
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       // console.log(session);
@@ -362,7 +358,7 @@ async function run() {
       res.send({ success: true });
     });
 
-    app.get("/funding", async (req, res) => {
+    app.get("/funds", async (req, res) => {
       const result = await fundingCollection.find().toArray();
       res.send(result);
     });

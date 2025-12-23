@@ -56,7 +56,7 @@ const verifyFBToken = async (req, res, next) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("donation-db");
     const donorCollection = db.collection("donors");
@@ -215,24 +215,19 @@ async function run() {
       res.send(result);
     });
 
-    app.get(
-      "/requests/latest",
-      verifyFBToken,
-      verifyFBToken,
-      async (req, res) => {
-        const email = req.query.email;
-        const query = {};
-        if (email) {
-          query.requesterEmail = email;
-        }
-        const result = await requestCollection
-          .find(query)
-          .sort({ createdAt: -1 })
-          .limit(3)
-          .toArray();
-        res.send(result);
+    app.get("/requests/latest", verifyFBToken, async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.requesterEmail = email;
       }
-    );
+      const result = await requestCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .toArray();
+      res.send(result);
+    });
 
     app.get("/requests/pending", async (req, res) => {
       const donationStatus = req.query.donationStatus;
